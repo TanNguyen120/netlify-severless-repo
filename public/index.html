@@ -20,10 +20,12 @@
         const fetchPokemonBtn = document.getElementById('fetch-pokemon')
         const responseText = document.getElementById('response-output')
 
+
         fetchBtn.addEventListener('click', async () => {
-          const response = await fetch('/.netlify/functions/helloWorld')
+          const url = '/.netlify/functions/comps?q=Nintendo 3ds';
+          const response = await fetch(url);
           const data = await response.json()
-          responseText.innerText = data.message
+          responseText.innerText = JSON.stringify(data, null, 2)
         })
         fetchPokemonBtn.addEventListener('click', async () => {
           const response = await fetch('/.netlify/functions/pokeAPI')
