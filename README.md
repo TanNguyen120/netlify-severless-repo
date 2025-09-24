@@ -40,7 +40,11 @@ Login to Netlify
 
 ntl login
 
-ntl dev to run the project
+```bash
+ntl dev
+```
+
+to run the project
 
 [build]
 functions = "functions"
