@@ -15,7 +15,7 @@ Follow the steps below to set up and run locally with the `ntl` (Netlify CLI) to
   npm install -g netlify-cli
   ```
 
-🛠 Setup
+## 🛠 Setup
 
 Clone the repository
 
@@ -40,16 +40,7 @@ Login to Netlify
 
 ntl login
 
-Link your project to a Netlify site
-
-ntl link
-
-If you already have a site created, select it from the list.
-
-If not, you can create a new site directly from the CLI.
-
-Configure Functions Folder
-Ensure your netlify.toml includes:
+ntl dev to run the project
 
 [build]
 functions = "functions"
