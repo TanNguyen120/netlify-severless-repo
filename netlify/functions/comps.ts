@@ -5,47 +5,51 @@ import 'dotenv/config'; // Import and configure dotenv
 import * as cheerio from 'cheerio';
 import { parse } from 'dotenv';
 
+// in-memory cache for 60 minutes
+const cache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
+const CACHE_DURATION = 60 * 60 * 1000; // 60 minutes in milliseconds
+
 const handler: Handler = async (event: any, context: any) => {
+  const durationFromLastFetch = cache.timestamp
+    ? Date.now() - cache.timestamp
+    : null;
+  if (cache.data && Date.now() - cache.timestamp < CACHE_DURATION) {
+    console.log('Returning cached data');
+    return {
+      statusCode: 200,
+      body: JSON.stringify(cache.data),
+    };
+  }
   // Your function logic here
-  const message = `Hello from Netlify Function in TypeScript!`;
   const { q } = event.queryStringParameters;
-  console.log(`Item Name: ${q}`);
+
   const formatItemName = q.replace(/ /g, '+');
-  console.log(`Formatted Item Name: ${formatItemName}`);
+
   const scrapURL = `https://www.ebay.com/sch/i.html?_nkw=${formatItemName}&_sop=12&LH_Sold=1&LH_Complete=1`;
   const client = new scrapingbee.ScrapingBeeClient(process.env.BEE_KEY || '');
   const response = await client.get({
     url: scrapURL,
-    // params: {
-    //   extract_rules: {
-    //     items: {
-    //       selector: '.su-card-container',
-    //       type: 'list',
-    //       output: {
-    //         tile: '.s-card__title',
-    //         price: '.s-card__price',
-    //         soldDate: 's-card__caption',
-
-    //       },
-    //     },
-    //   },
-    // },
   });
-  // const decoder = new TextDecoder();
-  // const text = decoder.decode(response.data);
-  // const textJSON = JSON.parse(text);
-  // console.log(`ScrapingBee Response: `);
-  // console.log(textJSON);
+
   const rawHTML = await response.data;
   const text = extractItemsFromHTML(rawHTML);
-  console.log(text);
   const stats = calculateSalesMetrics(text);
+  cache.data = {
+    query: q,
+    stats,
+    items: text,
+    source: 'scrapingbee',
+    cached: true,
+  };
+  cache.timestamp = Date.now();
   return {
     statusCode: 200,
     body: JSON.stringify({
       query: q,
       stats,
       items: text,
+      source: 'scrapingbee',
+      cached: false,
     }),
   };
 };
@@ -66,10 +70,20 @@ function extractItemsFromHTML(html: string) {
     const imageUrl = imageDiv.find('img').attr('src');
     const itemUrl = imageDiv.find('a').attr('href');
     const parsedPrice = parsePrice(price);
-
+    let shipping = null;
+    let shippingCost = null;
+    // sometimes shipping info is in the second child of .su-card-container__attributes__primary
+    // and sometimes it's not there at all
+    const shippingInfo = $(element)
+      .find('.su-card-container__attributes__primary')
+      .children();
+    if (shippingInfo.length > 1) {
+      const shippingText = $(shippingInfo[2]).text();
+      shippingCost = getShippingCost(shippingText);
+    }
     if (title !== 'Shop on eBay' && parsedPrice && soldDate && condition) {
       const beautyCondition = condition.replace(' · ', '');
-      items.push({
+      const resultData = {
         title,
         price: parsedPrice?.value,
         currency: parsedPrice?.symbol,
@@ -77,7 +91,13 @@ function extractItemsFromHTML(html: string) {
         condition: beautyCondition,
         imageUrl,
         itemUrl,
-      });
+      };
+      if (shippingCost) {
+        const newResultData = { ...resultData, shipping: shippingCost };
+        items.push(newResultData);
+      } else {
+        items.push(resultData);
+      }
     }
   });
   return items;
@@ -133,10 +153,31 @@ function quantile(arr: number[], q: number) {
 function convertToDate(dateStr: string) {
   // Example dateStr: "Sold Sep 23, 2025"
   const parts = dateStr.replace('Sold ', '').split(' ');
-  console.log(parts);
+
   const month = new Date(Date.parse(parts[1] + ' 1, 2020')).getMonth();
   const day = parseInt(parts[2], 10);
   const year = parseInt(parts[3], 10);
   const date = new Date(Date.UTC(year, month, day));
   return date.toISOString();
+}
+
+// get shipping cost if available
+function getShippingCost(shippingText: string) {
+  let shippingCost = null;
+
+  if (shippingText) {
+    if (
+      !shippingText.toLowerCase().includes('free') &&
+      shippingText.includes('delivery')
+    ) {
+      let formattedShipping = shippingText.replace(' delivery', '');
+      formattedShipping = formattedShipping.replace('+', '');
+      const parsedShipping = parsePrice(formattedShipping);
+      if (parsedShipping) {
+        shippingCost = parsedShipping.value;
+      }
+    }
+  }
+
+  return shippingCost;
 }

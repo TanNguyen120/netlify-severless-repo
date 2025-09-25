@@ -21,7 +21,7 @@
 
 
         fetchBtn.addEventListener('click', async () => {
-          const url = '/.netlify/functions/comps?q=Nintendo Switch 2';
+          const url = '/.netlify/functions/comps?q=nintendo 3ds';
           const response = await fetch(url);
           const data = await response.json()
           responseText.innerText = JSON.stringify(data, null, 2)
