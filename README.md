@@ -34,17 +34,47 @@ npm install
 "scrapingbee": "^1.7.5"
 },
 
+"devDependencies": {
+"@types/jest": "^30.0.0",
+"jest": "^30.1.3",
+"node-fetch": "^3.3.2",
+"ts-jest": "^29.4.4",
+"typescript": "^5.9.2"
+}
+
 This will install all packages listed in package.json.
 
 Login to Netlify
 
 ntl login
 
+# to run the project
+
 ```bash
 ntl dev
 ```
 
-to run the project
+# To run unit test
+
+```bash
+npm test
+```
+
+---
+
+## 📡 Example Usage with cURL
+
+After running `ntl dev` locally or deploying to Netlify, you can call the serverless function using `curl`.
+
+### Example 1: Query for Nintendo 3DS
+
+```bash
+curl "http://localhost:8888/.netlify/functions/comps?q=nintendo+3ds"
+```
+
+```bash
+curl "http://localhost:8888/.netlify/functions/comps?q=playstation+5"
+```
 
 [build]
 functions = "functions"
