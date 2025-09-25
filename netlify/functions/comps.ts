@@ -1,5 +1,10 @@
 // netlify/functions/myFunction.ts
-import { Handler } from '@netlify/functions';
+import {
+  Handler,
+  HandlerEvent,
+  HandlerContext,
+  HandlerResponse,
+} from '@netlify/functions';
 import scrapingbee from 'scrapingbee'; // Importing SPB's SDK
 import 'dotenv/config'; // Import and configure dotenv
 import * as cheerio from 'cheerio';
@@ -9,7 +14,10 @@ import { parse } from 'dotenv';
 const cache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
 const CACHE_DURATION = 60 * 60 * 1000; // 60 minutes in milliseconds
 
-const handler: Handler = async (event: any, context: any) => {
+export const handler: Handler = async (
+  event: HandlerEvent,
+  context: HandlerContext
+): Promise<HandlerResponse> => {
   const durationFromLastFetch = cache.timestamp
     ? Date.now() - cache.timestamp
     : null;
@@ -53,8 +61,6 @@ const handler: Handler = async (event: any, context: any) => {
     }),
   };
 };
-
-export { handler };
 
 function extractItemsFromHTML(html: string) {
   const $ = cheerio.load(html);
