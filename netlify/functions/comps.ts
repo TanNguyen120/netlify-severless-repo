@@ -5,13 +5,17 @@ import {
   HandlerContext,
   HandlerResponse,
 } from '@netlify/functions';
-import scrapingbee from 'scrapingbee'; // Importing SPB's SDK
+import { ScrapingBeeClient } from 'scrapingbee'; // Importing SPB's SDK
 import 'dotenv/config'; // Import and configure dotenv
 import * as cheerio from 'cheerio';
 import { parse } from 'dotenv';
 
 // in-memory cache for 60 minutes
-const cache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
+const cache: { data: any; timestamp: number; query: string } = {
+  data: null,
+  timestamp: 0,
+  query: '',
+};
 const CACHE_DURATION = 60 * 60 * 1000; // 60 minutes in milliseconds
 
 export const handler: Handler = async (
@@ -21,27 +25,37 @@ export const handler: Handler = async (
   const durationFromLastFetch = cache.timestamp
     ? Date.now() - cache.timestamp
     : null;
-  if (cache.data && Date.now() - cache.timestamp < CACHE_DURATION) {
+
+  const { q } = event.queryStringParameters || {};
+  const formatItemName = q?.replace(/ /g, '+') ?? '';
+  if (!q || q.trim() === '') {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Missing query parameter q' }),
+    };
+  }
+
+  if (
+    cache.data &&
+    durationFromLastFetch !== null &&
+    durationFromLastFetch < CACHE_DURATION &&
+    cache.query === q
+  ) {
     console.log('Returning cached data');
     return {
       statusCode: 200,
       body: JSON.stringify(cache.data),
     };
   }
-  // Your function logic here
-  const { q } = event.queryStringParameters;
-
-  const formatItemName = q.replace(/ /g, '+');
 
   const scrapURL = `https://www.ebay.com/sch/i.html?_nkw=${formatItemName}&_sop=12&LH_Sold=1&LH_Complete=1`;
-  const client = new scrapingbee.ScrapingBeeClient(process.env.BEE_KEY || '');
-  const response = await client.get({
-    url: scrapURL,
-  });
+  const client = new ScrapingBeeClient(process.env.BEE_KEY || '');
+  const response = await client.get({ url: scrapURL });
 
   const rawHTML = await response.data;
   const text = extractItemsFromHTML(rawHTML);
   const stats = calculateSalesMetrics(text);
+
   cache.data = {
     query: q,
     stats,
@@ -50,6 +64,7 @@ export const handler: Handler = async (
     cached: true,
   };
   cache.timestamp = Date.now();
+  cache.query = q;
   return {
     statusCode: 200,
     body: JSON.stringify({

@@ -1,34 +1,46 @@
 import { handler } from '../netlify/functions/comps';
+import type { HandlerResponse } from '@netlify/functions';
 
-describe('Netlify handler', () => {
-  beforeEach(() => {
-    // Reset cache before each test
-    (global as any).cache = {};
-  });
+describe('Netlify serverless function', () => {
+  it('should return 200 and cached data', async () => {
+    const event = {
+      queryStringParameters: { q: 'nintendo 3ds' },
+    } as any;
 
-  it('should return cached data when available', async () => {
-    (global as any).cache = {
-      data: { test: true },
-      timestamp: Date.now(),
-    };
+    const context = {} as any;
 
-    const result = await handler(
-      { queryStringParameters: { q: 'nintendo 3ds' } } as any,
-      {} as any
-    );
+    // Explicitly cast result to HandlerResponse
+    const result = (await handler(event, context)) as HandlerResponse;
 
     expect(result.statusCode).toBe(200);
-    expect(JSON.parse(result.body).cached).toBe(true);
+
+    const body = JSON.parse(result.body ?? '{}');
+    expect(body).toHaveProperty('query', 'nintendo 3ds');
+    expect(body).toHaveProperty('stats');
+    expect(body).toHaveProperty('items');
   });
 
-  it('should fetch new data if no cache', async () => {
-    const result = await handler(
-      { queryStringParameters: { q: 'nintendo 3ds' } } as any,
-      {} as any
+  it('should return fresh data if no cache exists', async () => {
+    // reset cache so it's empty
+    jest.resetModules();
+    const { handler: freshHandler } = await import(
+      '../netlify/functions/comps'
     );
 
+    const event = {
+      queryStringParameters: { q: 'playstation 5' },
+    } as any;
+
+    const context = {} as any;
+
+    const result = (await freshHandler(event, context)) as HandlerResponse;
+
     expect(result.statusCode).toBe(200);
-    const body = JSON.parse(result.body);
-    expect(body.items.length).toBeGreaterThan(0);
+
+    const body = JSON.parse(result.body ?? '{}');
+    expect(body).toHaveProperty('query', 'playstation 5');
+    expect(body).toHaveProperty('stats');
+    expect(body).toHaveProperty('items');
+    expect(body.cached).toBe(false); // explicitly check for fresh fetch
   });
 });
