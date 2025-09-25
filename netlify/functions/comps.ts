@@ -91,13 +91,9 @@ function extractItemsFromHTML(html: string) {
         condition: beautyCondition,
         imageUrl,
         itemUrl,
+        shipping: shippingCost,
       };
-      if (shippingCost) {
-        const newResultData = { ...resultData, shipping: shippingCost };
-        items.push(newResultData);
-      } else {
-        items.push(resultData);
-      }
+      items.push(resultData);
     }
   });
   return items;
@@ -163,7 +159,7 @@ function convertToDate(dateStr: string) {
 
 // get shipping cost if available
 function getShippingCost(shippingText: string) {
-  let shippingCost = null;
+  let shippingCost = 0;
 
   if (shippingText) {
     if (
