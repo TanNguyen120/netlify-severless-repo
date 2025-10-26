@@ -44,6 +44,11 @@ export const handler: Handler = async (
     console.log('Returning cached data');
     return {
       statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': 'http://localhost:3000', // Replace 3000 with your actual port
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+      },
       body: JSON.stringify(cache.data),
     };
   }
