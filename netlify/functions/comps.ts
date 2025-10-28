@@ -70,8 +70,14 @@ export const handler: Handler = async (
   };
   cache.timestamp = Date.now();
   cache.query = q;
+  const headers = {
+    'Access-Control-Allow-Origin': '*', // Allows all origins
+    'Access-Control-Allow-Headers': 'Content-Type', // Allows Content-Type header
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', // Allows specified methods
+  };
   return {
     statusCode: 200,
+    headers,
     body: JSON.stringify({
       query: q,
       stats,
