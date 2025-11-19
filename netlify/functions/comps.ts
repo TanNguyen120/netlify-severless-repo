@@ -8,7 +8,7 @@ import {
 import { ScrapingBeeClient } from 'scrapingbee'; // Importing SPB's SDK
 import 'dotenv/config'; // Import and configure dotenv
 import * as cheerio from 'cheerio';
-import { parse } from 'dotenv';
+import { stringSimilarity } from 'string-similarity-js';
 
 // in-memory cache for 60 minutes
 const cache: { data: any; timestamp: number; query: string } = {
@@ -58,7 +58,7 @@ export const handler: Handler = async (
   const response = await client.get({ url: scrapURL });
 
   const rawHTML = await response.data;
-  const text = extractItemsFromHTML(rawHTML);
+  const text = extractItemsFromHTML(rawHTML, q);
   const stats = calculateSalesMetrics(text);
 
   cache.data = {
@@ -88,12 +88,13 @@ export const handler: Handler = async (
   };
 };
 
-function extractItemsFromHTML(html: string) {
+function extractItemsFromHTML(html: string, query: string) {
   const $ = cheerio.load(html);
   const items: any[] = [];
   console.log(`Extracting items from HTML...`);
   $('.su-card-container').each((index, element) => {
-    const title = $(element).find('.s-card__title').text();
+    const tileDiv = $(element).find('.s-card__title');
+    const title = tileDiv.find('.primary').text();
     const price = $(element).find('.s-card__price').text();
     const soldDate = $(element).find('.s-card__caption').text();
     const subtile = $(element).find('.s-card__subtitle');
@@ -115,6 +116,8 @@ function extractItemsFromHTML(html: string) {
     }
     if (title !== 'Shop on eBay' && parsedPrice && soldDate && condition) {
       const beautyCondition = condition.replace(' · ', '');
+      // compare item name to search string so we will have a weight system to determine the resell value
+      console.log('tile is ', title);
       const resultData = {
         title,
         price: parsedPrice?.value,
@@ -177,7 +180,7 @@ function quantile(arr: number[], q: number) {
   }
 }
 
-// convert "Sold Sep 23, 2025" to Date UTC ISO-8601 UTC date string
+// convert "Sold Sep 23, 2025" to Date UTC ISO-8601 UTC date string=
 function convertToDate(dateStr: string) {
   // Example dateStr: "Sold Sep 23, 2025"
   const parts = dateStr.replace('Sold ', '').split(' ');
