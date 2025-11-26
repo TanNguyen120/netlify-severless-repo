@@ -22,70 +22,80 @@ export const handler: Handler = async (
   event: HandlerEvent,
   context: HandlerContext
 ): Promise<HandlerResponse> => {
-  const durationFromLastFetch = cache.timestamp
-    ? Date.now() - cache.timestamp
-    : null;
+  try {
+    const durationFromLastFetch = cache.timestamp
+      ? Date.now() - cache.timestamp
+      : null;
 
-  const { q } = event.queryStringParameters || {};
-  const formatItemName = q?.replace(/ /g, '+') ?? '';
-  if (!q || q.trim() === '') {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'Missing query parameter q' }),
-    };
-  }
+    const { q } = event.queryStringParameters || {};
+    const formatItemName = q?.replace(/ /g, '+') ?? '';
+    if (!q || q.trim() === '') {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Missing query parameter q' }),
+      };
+    }
 
-  if (
-    cache.data &&
-    durationFromLastFetch !== null &&
-    durationFromLastFetch < CACHE_DURATION &&
-    cache.query === q
-  ) {
-    console.log('Returning cached data');
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*', // Replace 3000 with your actual port
-        'Access-Control-Allow-Headers': '*',
-        'Access-Control-Allow-Methods': '*',
-      },
-      body: JSON.stringify(cache.data),
-    };
-  }
+    if (
+      cache.data &&
+      durationFromLastFetch !== null &&
+      durationFromLastFetch < CACHE_DURATION &&
+      cache.query === q
+    ) {
+      console.log('Returning cached data');
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*', // Replace 3000 with your actual port
+          'Access-Control-Allow-Headers': '*',
+          'Access-Control-Allow-Methods': '*',
+        },
+        body: JSON.stringify(cache.data),
+      };
+    }
 
-  const scrapURL = `https://www.ebay.com/sch/i.html?_nkw=${formatItemName}&_sop=12&LH_Sold=1&LH_Complete=1&_ipg=240`;
-  const client = new ScrapingBeeClient(process.env.BEE_KEY || '');
-  const response = await client.get({ url: scrapURL });
+    const scrapURL = `https://www.ebay.com/sch/i.html?_nkw=${formatItemName}&_sop=12&LH_Sold=1&LH_Complete=1&_ipg=240`;
+    const client = new ScrapingBeeClient(process.env.BEE_KEY || '');
+    const response = await client.get({ url: scrapURL });
 
-  const rawHTML = await response.data;
-  const text = extractItemsFromHTML(rawHTML, q);
-  const stats = calculateSalesMetrics(text);
+    const rawHTML = await response.data;
+    const text = extractItemsFromHTML(rawHTML, q);
+    const stats = calculateSalesMetrics(text);
 
-  cache.data = {
-    query: q,
-    stats,
-    items: text,
-    source: 'scrapingbee',
-    cached: true,
-  };
-  cache.timestamp = Date.now();
-  cache.query = q;
-  const headers = {
-    'Access-Control-Allow-Origin': '*', // Allows all origins
-    'Access-Control-Allow-Headers': 'Content-Type', // Allows Content-Type header
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', // Allows specified methods
-  };
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify({
+    cache.data = {
       query: q,
       stats,
       items: text,
       source: 'scrapingbee',
-      cached: false,
-    }),
-  };
+      cached: true,
+    };
+    cache.timestamp = Date.now();
+    cache.query = q;
+    const headers = {
+      'Access-Control-Allow-Origin': '*', // Allows all origins
+      'Access-Control-Allow-Headers': 'Content-Type', // Allows Content-Type header
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', // Allows specified methods
+    };
+    console.log('Returning new fetched data length:', text.length);
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        query: q,
+        stats,
+        items: text,
+        source: 'scrapingbee',
+        cached: false,
+      }),
+    };
+  } catch (error) {
+    console.error('Error in handler:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal Server Error' }),
+    };
+  }
 };
 
 function extractItemsFromHTML(html: string, query: string) {
