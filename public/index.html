@@ -11,21 +11,31 @@
   <body>
     <h1>Up and Running with Serverless Functions</h1>
     <button id="fetch-btn">Fetch</button>
+    <button id="fetch-ebay-sell">Fetch eBay Sell</button>
     <p id="response-output">Response Placeholder</p>
 
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         const fetchBtn = document.getElementById('fetch-btn')
-        const fetchPokemonBtn = document.getElementById('fetch-pokemon')
+
+        const fetchEbaySellBtn = document.getElementById('fetch-ebay-sell')
         const responseText = document.getElementById('response-output')
 
 
         fetchBtn.addEventListener('click', async () => {
-          const url = '/.netlify/functions/comps?q=white+Hoka+On+cloud+athletic+shoes';
+          const url = '/.netlify/functions/comps?q=steam-deck';
           const response = await fetch(url);
           const data = await response.json()
           responseText.innerText = JSON.stringify(data, null, 2)
         })
+
+        fetchEbaySellBtn.addEventListener('click', async () => {
+          const url = '/.netlify/functions/ebaySales?q=white+Hoka+On+cloud+athletic+shoes';
+          const response = await fetch(url);
+          const data = await response.json()
+          responseText.innerText = JSON.stringify(data, null, 2)
+        })
+
       })
     </script>
   </body>
